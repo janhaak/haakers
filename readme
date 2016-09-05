@@ -1,0 +1,13 @@
+How to run the server:
+Args:
+type        the type of the code release  
+API_token   the individual API token given to your team  
+kind_code   the kind code for the messages  
+API_base    the base URL for the game API
+
+./server.py <type> <token> <kind code> <api base>
+
+You may also need to run these commands:
+sudo pip install boto3
+sudo pip install requests
+sudo pip install flask
