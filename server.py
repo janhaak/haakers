@@ -2,7 +2,7 @@
 """
 Client which receives the requests
 
-Args:
+ARGS:
     type (1-10)
     API Token
     Kind Code (abcd, efgh, etc.)
@@ -12,6 +12,8 @@ Args:
 from flask import Flask, request
 import logging
 import argparse
+import json
+import os
 import requests
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -28,6 +30,7 @@ ARGS = PARSER.parse_args()
 # defining global vars
 KIND_CODE = ARGS.kind_code # The codes for different kinds of messages
 MESSAGES = {} # A dictionary that contains message parts
+FNAME = "/tmp/db.json" # local file where messages will be stored across executions
 API_BASE = ARGS.API_base
 # 'https://qq1ttt6sp3.execute-api.us-west-2.amazonaws.com/dev'
 
@@ -44,6 +47,29 @@ def main_handler():
     else:
         return get_message_stats()
 
+def store_message():
+    """
+    stores the message locally on a file on disk for persistence
+    """
+    # reading existing file and overwriting
+    with open(FNAME, 'w') as outfile:
+        # create JSON string and output to file on disk
+        json.dump(MESSAGES, outfile)
+
+def load_messages():
+    """
+    loads message from locally on the disk
+    """
+    global MESSAGES
+    # check to see if messages file exists on the disk
+    if not os.path.isfile(FNAME):
+        # create the file
+        open(FNAME, "a").close()
+    else:
+        # load messages from the file
+        MESSAGES = json.load(open(FNAME))
+
+
 def get_message_stats():
     """
     provides a status that players can check
@@ -59,6 +85,9 @@ def process_message(msg):
     part_number = msg['PartNumber'] # Which part of the message it is
     data = msg['Data'] # The data of the message
 
+    # loading messages from local file
+    load_messages()
+
     # Try to get the parts of the message from the MESSAGES dictionary.
     # If it's not there, create one that has None in both parts
     parts = MESSAGES.get(msg_id, [None, None])
@@ -68,10 +97,10 @@ def process_message(msg):
 
     # store the parts in MESSAGES
     MESSAGES[msg_id] = parts
-
+    store_message()
     # if both parts are filled, the message is complete
     if None not in parts:
-        # app.logger.debug("got a complete message for %s" % msg_id)
+        # APP.logger.debug("got a complete message for %s" % msg_id)
         print "have both parts"
         # We can build the final message.
         result = parts[0] + parts[1] + KIND_CODE
@@ -83,10 +112,7 @@ def process_message(msg):
         APP.logger.debug("ID: %s" % msg_id)
         APP.logger.debug("RESULT: %s" % result)
         url = API_BASE + '/' + msg_id
-        print url
-        print result
-        response = requests.post(url, data=result, headers={'x-gameday-token':ARGS.API_token})
-        print response
+        requests.post(url, data=result, headers={'x-gameday-token':ARGS.API_token})
 
     return 'OK'
 
