@@ -14,7 +14,6 @@ import logging
 import argparse
 import requests
 import boto3
-from boto3.dynamodb.conditions import Key
 
 #logging.basicConfig(level=logging.INFO)
 
@@ -31,8 +30,8 @@ ARGS = PARSER.parse_args()
 KIND_CODE = ARGS.kind_code # The codes for different kinds of messages
 MESSAGES = {} # A dictionary that contains message parts
 API_BASE = ARGS.API_base
-DYNAMODB = boto3.resource('dynamodb') # creating dynamo resource
-STATE_TABLE = DYNAMODB.Table('gameday-messages-state') # creating state table object
+DYNAMODB = boto3.resource('dynamodb')
+STATE_TABLE = DYNAMODB.Table('gameday-messages-state')
 
 
 APP = Flask(__name__)
@@ -53,7 +52,6 @@ def store_message(input_id, part_num, data):
     """
     stores the message locally on a file on disk for persistence
     """
-    # putting record into dynamo with the part number received
     STATE_TABLE.update_item(
         Key={
             'Id': input_id
@@ -71,29 +69,22 @@ def check_messages(input_id):
     """
     checking to see in dynamo if we have the part already
     """
-    # do a scan of dynamo to see if item exists
-    response = STATE_TABLE.scan(FilterExpression=Key('Id').eq(input_id))
-
-    # checking if the object was returned
-    if len(response['Items']) == 0:
-        # message doesn't exist, so move on
-        # this should never happen since we
-        # put the initial entry in dynamo before
-        # checking...but just in case
-        return
+    # do a get item from dynamo to see if item exists
+    response = STATE_TABLE.get_item(
+        Key={
+            'Id': input_id
+        },
+        ConsistentRead=True
+    )
+    item = response['Item']
+    # check if both parts exist
+    if "0" in item and "1" in item:
+        print "we have both!"
+        # we have all the parts
+        build_final(item, input_id)
     else:
-        item = response['Items'][0]
-        # check if both parts exist
-        if "0" in item and "1" in item:
-            # we have all the parts
-            print "have all parts"
-            # proceed to putting items together and returning
-            build_final(item, input_id)
-            return
-        else:
-            # we have some parts but not all
-            print "have some parts"
-            return
+        # we have some parts but not all
+        return
 
 def build_final(parts, msg_id):
     """
