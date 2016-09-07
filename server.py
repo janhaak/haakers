@@ -29,6 +29,7 @@ ARGS = PARSER.parse_args()
 
 # defining global vars
 KIND_CODE = ARGS.kind_code # The codes for different kinds of messages
+KIND_CODE = "someone is reading this, right?"
 MESSAGES = {} # A dictionary that contains message parts
 API_BASE = ARGS.API_base
 DYNAMODB = boto3.resource('dynamodb') # creating dynamo resource
